@@ -91,3 +91,16 @@ def test_docker_image_pre_pull_entrypoint_entry(mock_setup, tmp_path):
         ('docker', 'pull', 'ubuntu:22.04'),
     )
     assert ret == (0, b'hello hello world\n')
+
+
+@xfailif_windows  # pragma: win32 no cover
+@patch('pre_commit.lang_base.setup_cmd', side_effect=Exception('Pull failed'))
+def test_docker_image_pre_pull_exception_ignored(mock_setup, tmp_path):
+    ret = run_language(
+        tmp_path,
+        docker_image,
+        'ubuntu:22.04 echo',
+        args=('hello hello world',),
+    )
+    mock_setup.assert_called_once()
+    assert ret == (0, b'hello hello world\n')
