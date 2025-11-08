@@ -79,7 +79,7 @@ def test_docker_image_pre_pull_regular_entry(mock_setup, tmp_path):
 
 @xfailif_windows  # pragma: win32 no cover
 @patch('pre_commit.lang_base.setup_cmd')
-def test_docker_image_pre_pull_entrypoint_entry(mock_setup, tmp_path):
+def test_docker_image_pre_pull_entrypoint_space(mock_setup, tmp_path):
     ret = run_language(
         tmp_path,
         docker_image,
@@ -90,6 +90,35 @@ def test_docker_image_pre_pull_entrypoint_entry(mock_setup, tmp_path):
         mock_setup.call_args[0][0],
         ('docker', 'pull', 'ubuntu:22.04'),
     )
+    assert ret == (0, b'hello hello world\n')
+
+
+@xfailif_windows  # pragma: win32 no cover
+@patch('pre_commit.lang_base.setup_cmd')
+def test_docker_image_pre_pull_entrypoint_equals(mock_setup, tmp_path):
+    ret = run_language(
+        tmp_path,
+        docker_image,
+        '--entrypoint=echo ubuntu:22.04',
+        args=('hello hello world',),
+    )
+    mock_setup.assert_called_once_with(
+        mock_setup.call_args[0][0],
+        ('docker', 'pull', 'ubuntu:22.04'),
+    )
+    assert ret == (0, b'hello hello world\n')
+
+
+@xfailif_windows  # pragma: win32 no cover
+@patch('pre_commit.lang_base.setup_cmd')
+def test_docker_image_pre_pull_undocumented_option(mock_setup, tmp_path):
+    ret = run_language(
+        tmp_path,
+        docker_image,
+        '-e JAVA_HOME ubuntu:22.04 echo',
+        args=('hello hello world',),
+    )
+    mock_setup.assert_not_called()
     assert ret == (0, b'hello hello world\n')
 
 

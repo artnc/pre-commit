@@ -26,11 +26,34 @@ def run_hook(
     cmd = lang_base.hook_cmd(entry, args)
 
     # To prevent duplicate simultaneous image pull attempts in `run_xargs`, we
-    # try to precache the Docker image by pulling it here first
+    # opportunistically try to precache the Docker image by pulling it here.
     try:
-        image_name = cmd[2 if cmd[0] == '--entrypoint' else 0]
-        lang_base.setup_cmd(prefix, ('docker', 'pull', image_name))
+        # Attempt to precache only if we can easily identify the image tag.
+        #
+        # Our public docs state that `entry` must be a Docker image tag with
+        # optionally an entrypoint override, but there might be users who
+        # instead treat `entry` as a place to put arbitrary `docker run` args.
+        #
+        # To accommodate such users who are relying on undocumented behavior,
+        # we check whether the first non-entrypoint argument is another option,
+        # i.e. it begins with a dash. If not, it must be the image name
+        # according to `docker run --help`:
+        #
+        #   docker run [OPTIONS] IMAGE [COMMAND] [ARG...]`
+        if cmd[0] == '--entrypoint':
+            first_non_ep_arg = cmd[2]
+        elif cmd[0].startswith('--entrypoint='):
+            first_non_ep_arg = cmd[1]
+        else:
+            first_non_ep_arg = cmd[0]
+        if not first_non_ep_arg.startswith('-'):
+            # We've found the image tag
+            lang_base.setup_cmd(prefix, ('docker', 'pull', first_non_ep_arg))
     except Exception:
+        # We swallow the error because this precaching pull is a nonessential
+        # speed optimization. If it fails, `docker run` (possibly multiple
+        # invocations of it, redundantly) will still try to pull the image
+        # later as needed.
         pass
 
     return lang_base.run_xargs(
